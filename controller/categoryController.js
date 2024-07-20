@@ -1,35 +1,64 @@
 const Category = require("../models/category");
 const fs = require("fs");
-const upload = require("../helper");
+const uploadFile = require("../helper");
 const { type } = require("os");
+const { category } = require("../models");
 
 module.exports = {
   createCategory: async (req, res) => {
-    console.log("req : ", req)
-        try {
-          const { title, description, status, type, subType } = req.body;
-  
-          if (!title) {
-            return res.status(400).json({ message: "Title is required" });
-          }
-    
-          const newCategory = await Category.create({
-            title,
-            description,
-            image : null,
-            status: status || "Active",
-            type,
-            subType
-          });
-  
-          res.status(200).json({
-            message: "Category created successfully",
-            category: newCategory,
-          });
-        } catch (error) {
-          console.error("Error creating category:", error);
-          res.status(500).json({ message: "Failed to create category" });
+    try {
+      await uploadFile(req, res);
+      // console.log("req.file", req);
+      if (req.file == undefined) {
+        return res.status(400).send({ message: "Please upload a file!" });
+      }
+
+      const { title, description, status, type, subType } = req.body;
+
+      if (!title) {
+        return res.status(400).json({ message: "Title is required" });
+      }
+
+      const newCategory = await Category.create({
+        title,
+        description,
+        image: req.file?.originalname || null,
+        status: status || "Active",
+        type,
+        subType,
+      });
+
+      res.status(200).json({
+        message: "Category created successfully",
+        category: newCategory,
+      });
+    } catch (error) {
+      console.error("Error creating category:", error);
+      res.status(500).json({ message: "Failed to create category" });
+    }
+  },
+
+  getAllCategories: async (req, res) => {
+    try {
+      const categories = await Category.findAll();
+      console.log("host : ", process.env.HOST);
+      const baseUrl = `http://${process.env.HOST}:4000/uploads`;
+      const categoriesWithImageUrl = categories.map((category) => {
+        if (category.image) {
+          category.image = `${baseUrl}/${category.image}`;
         }
+        return category;
+      });
+      res
+        .status(200)
+        .json({
+          message: "Categories retrieved successfully",
+          categories: categoriesWithImageUrl,
+        });
+    } catch (error) {
+      console.error("Error retrieving categories:", error);
+      res.status(500).json({ message: "Failed to retrieve categories" });
+    }
   },
 
   getCategory: async (req, res) => {
@@ -48,18 +77,6 @@ module.exports = {
     } catch (error) {
       console.error("Error retrieving category:", error);
       res.status(500).json({ message: "Failed to retrieve category" });
-    }
-  },
-
-  getAllCategories: async (req, res) => {
-    try {
-      const categories = await Category.findAll();
-      res
-        .status(200)
-        .json({ message: "Categories retrieved successfully", categories });
-    } catch (error) {
-      console.error("Error retrieving categories:", error);
-      res.status(500).json({ message: "Failed to retrieve categories" });
     }
   },
 

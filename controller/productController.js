@@ -1,14 +1,16 @@
 const product = require("../models/products");
-
+const uploadFile = require("../helper");
 module.exports = {
   createProduct: async (req, res) => {
     try {
+      await uploadFile(req, res);
       console.log("body :", Object.keys(req.body), req.body);
       if (Object.keys(req.body).length !== 0) {
         const { title, description, category, price } = req.body;
         const newProduct = await product.create({
           title,
           description,
+          image: req.file?.originalname || null,
           category,
           price,
         });
@@ -34,7 +36,7 @@ module.exports = {
       const skip = req.body.skip || 0;
       const limit = req.body.limit || 10;
       let whereClause = {};
-      console.log("category", category)
+      console.log("category", category);
       if (category) {
         if (category.main && category.sub) {
           whereClause = {
@@ -57,10 +59,17 @@ module.exports = {
         offset: parseInt(skip),
         limit: parseInt(limit),
       });
+      const baseUrl = `http://${process.env.HOST}:4000/uploads`;
+      const productsWithImageUrl = products.map((product) => {
+        if (product.image) {
+          product.image = `${baseUrl}/${product.image}`;
+        }
+        return product;
+      });
       //   console.log("products", products);
       res.status(200).json({
         message: "Products retrieved successfully",
-        products: products,
+        products: productsWithImageUrl,
       });
     } catch (error) {
       console.error("Error retrieving products:", error);
